@@ -11,9 +11,6 @@ export default defineEventHandler(async (event) => {
     const { groupName, lessonName, quality, images } = body;
     
     try {
-        const downloadFolder = path.join(process.cwd(), 'scraped', Date.now().toString(), groupName, lessonName);
-        await fs.ensureDir(downloadFolder);
-
         // Create a new PDF document
         const pdfDoc = await PDFDocument.create();
 
