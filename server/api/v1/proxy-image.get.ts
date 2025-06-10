@@ -1,9 +1,11 @@
-import { defineEventHandler, readBody } from 'h3';
 import sharp from 'sharp';
 
 export default defineEventHandler(async (event) => {
   try {
-    const { imageUrl, quality, format } = await readBody(event);
+    const { "imageUrl":img, "quality":qualityValue="75", format='jpeg' } =  getQuery(event) as {imageUrl:string, quality:string,format:'jpeg'|'png'};
+    const imageUrl = decodeURIComponent(img)
+    const qualityNum = parseInt(qualityValue)
+    const quality = isNaN(qualityNum)?1:qualityNum
 
     // Fetch the image
     const response = await fetch(imageUrl);

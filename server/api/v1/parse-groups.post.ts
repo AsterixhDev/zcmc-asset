@@ -28,7 +28,6 @@ export default defineEventHandler(async (event) => {
                     if (dataLink && !dataLink.startsWith('http')) {
                         // Assuming BASE_URL is set in your environment variables
                         const baseUrl = (useRuntimeConfig().public.baseUrl) as string;
-                        console.log('Base URL:', baseUrl);
                         dataLink = new URL(dataLink, baseUrl).href;
                     }
                     if (dataLink) {

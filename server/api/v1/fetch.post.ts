@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -11,7 +11,8 @@ export default defineEventHandler(async (event) => {
             };
         }
 
-        const response = await axios.get(url);
+        const {id} = parseUrlQuery<{id:string}>(new URL(url))
+        const response = await useCache<AxiosResponse<any, any>>(id,async ()=>await axios.get(url), 0.10);
         return {
             success: true,
             data: response.data

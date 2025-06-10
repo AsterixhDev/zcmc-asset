@@ -31,7 +31,7 @@ export function useScraper() {
     // Make computed properties SSR-safe with null checks
     const isLoading = computed(() => {
         if (!status.value) return false;
-        return status.value.stage !== 'idle' && status.value.stage !== 'complete';
+        return status.value.stage !== 'idle' && status.value.stage !== 'complete' && status.value.stage !== 'error';
     })
 
     // Use undefined for browser-only features during SSR
