@@ -253,42 +253,54 @@ export function useScraper() {
                 }
             };
 
-            for (const groupName of selectedGroups) {
+            
+            const CHUNK_SIZE = 2; // Number of groups to process simultaneously
+            
+            // Process groups in chunks
+            for (let i = 0; i < selectedGroups.length; i += CHUNK_SIZE) {
                 if (abortController.value?.signal.aborted) {
                     throw new Error('Download cancelled by user');
                 }
-
-                const items = selected[groupName];
-                for (const itemTitle of items) {
-                    status.value = {
-                        stage: 'downloading',
-                        message: `Downloading ${groupName} - ${itemTitle}...`,
-                        progress: {
-                            current: status.value.progress?.current ?? 0,
-                            total: status.value.progress?.total ?? 0,
-                            group: groupName,
-                            downloadProgress: 0
-                        }
-                    };                    const item = groups.value[groupName].find((i: any) => i.title === itemTitle);
-                    if (item && item.images) {
-                        const imageUrls = item.images.map((img: any) => img.url);
-                        await downloadContent(
-                            groupName,
-                            itemTitle,
-                            imageUrls,
-                            quality,
-                            (progress) => {
-                                if (status.value.progress) {
-                                    status.value.progress.downloadProgress = progress;
-                                }
+            
+                const groupChunk = selectedGroups.slice(i, i + CHUNK_SIZE);
+                
+                // Process chunk of groups in parallel
+                await Promise.all(groupChunk.map(async (groupName) => {
+                    const items = selected[groupName];
+                    
+                    // Process each item in the group sequentially
+                    for (const itemTitle of items) {
+                        status.value = {
+                            stage: 'downloading',
+                            message: `Downloading ${groupName} - ${itemTitle}...`,
+                            progress: {
+                                current: status.value.progress?.current ?? 0,
+                                total: status.value.progress?.total ?? 0,
+                                group: groupName,
+                                downloadProgress: 0
                             }
-                        );
+                        };
+            
+                        const item = groups.value[groupName].find((i: any) => i.title === itemTitle);
+                        if (item && item.images) {
+                            await downloadContent(
+                                groupName,
+                                itemTitle,
+                                item.images,
+                                quality,
+                                (progress) => {
+                                    if (status.value.progress) {
+                                        status.value.progress.downloadProgress = progress;
+                                    }
+                                }
+                            );
+                        }
                     }
-                }
-
-                if (status.value.progress) {
-                    status.value.progress.current++;
-                }
+            
+                    if (status.value.progress) {
+                        status.value.progress.current++;
+                    }
+                }));
             }
 
             status.value = {
