@@ -79,12 +79,13 @@ export default defineEventHandler(async (event) => {
             useObjectStreams: true,
             addDefaultPage: false,
         });
+        const encoder = new TextEncoder()
         
         // Set response headers
         setHeaders(event, {
             'Content-Type': 'application/pdf',
             'Content-Length': pdfBytes.length,
-            'Content-Disposition': `attachment; filename="${groupName}-${lessonName}.pdf"`,
+            'Content-Disposition': `attachment; filename="${encoder.encode(groupName)}-${encoder.encode(lessonName)}.pdf"`,
             'Cache-Control': 'public, max-age=31536000'
         });
 
