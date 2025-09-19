@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import path from "path";
+import pLimit from "p-limit";
 
 interface ItemSelection {
   selected: boolean;
@@ -12,7 +13,16 @@ export default defineEventHandler(async (event) => {
     links,
     mode = "preview",
     selections,
-  } = await readBody(event);
+    onlyWithVideo = false,
+    onlyWithImages = false,
+  } = await readBody(event) as {
+    groupName: string;
+    links: string[];
+    mode?: "preview" | "download";
+    selections?: Record<string, ItemSelection>;
+    onlyWithVideo?: boolean;
+    onlyWithImages?: boolean;
+  };
 
   if (!groupName || !links || !Array.isArray(links)) {
     return {
@@ -21,89 +31,112 @@ export default defineEventHandler(async (event) => {
     };
   }
 
+  // Limit concurrency for both pages and images
+  const pageLimit = pLimit(10); // 5 pages at once
+  const imageLimit = pLimit(30); // 10 image HEADs at once
+
   try {
-    const results = [];
-
-    for (const link of links) {
-      const fullLink = `${process.env.BASE_URL || ""}${link}`;
-      const { linkId } = parseParam<{ linkId: string }>(
-        fullLink,
-        "/web/lection/:linkId/show_lection"
-      );
-
-      const pageResponse = await useCache<AxiosResponse<any, any>>(
-        linkId,
-        async () => await axios.get(fullLink),
-        30
-      );
-
-      const page$ = cheerio.load(pageResponse.data);
-
-      const title = page$(".lection_title").text().trim();
-      const materialMain = page$(".material_main a");
-
-      // Skip if in download mode and item is not selected
-      if (mode === "download" && selections) {
-        const groupSelection = selections[groupName] as ItemSelection;
-        if (!groupSelection?.selected && !groupSelection?.items[title]) {
-          continue;
-        }
-      }
-
-      if (materialMain.length > 0) {
-        const images = [];
-
-        for (const element of materialMain) {
-          const $element = page$(element);
-          const relativeImageUrl = $element.attr("href");
-          if (!relativeImageUrl) continue;
-
-          const imageUrl = resolveUrl(
-            useRuntimeConfig().public.baseUrl || "",
-            relativeImageUrl
+    const results = await Promise.all(
+      links.map((link) =>
+        pageLimit(async () => {
+          const fullLink = `${process.env.BASE_URL || ""}${link}`;
+          const { linkId } = parseParam<{ linkId: string }>(
+            fullLink,
+            "/web/lection/:linkId/show_lection"
           );
-          if (!imageUrl) continue;
 
-          const imageName = path.basename(imageUrl.split("?")[0]);
+          const pageResponse = await useCache<AxiosResponse<any, any>>(
+            linkId,
+            async () => await axios.get(fullLink),
+            30
+          );
 
-          try {
-            // Get file size for both modes
-            const headResponse = await useCache<AxiosResponse<any, any>>(
-              imageName,
-              async () => await axios.head(imageUrl),
-              30
-            );
-            const size = parseInt(
-              headResponse.headers["content-length"] || "0",
-              10
-            );
-            if (mode === "preview") {
-              images.push({
-                success: true,
-                url: imageUrl,
-                name: imageName,
-                size,
-              });
+          const page$ = cheerio.load(pageResponse.data);
+          const title = `${linkId}-${page$(".lection_title").text().trim()}`;
+          const materialMain = page$(".material_main a");
+          const hasVideo = page$(".video-js").length > 0;
+          console.log(onlyWithVideo,onlyWithImages)
+          if (onlyWithVideo && !hasVideo) return null;
+          if (
+            onlyWithImages &&
+            !onlyWithVideo&&
+            hasVideo &&
+            materialMain.length === 0
+          )
+            return null;
+
+          // Skip if in download mode and item is not selected
+          if (mode === "download" && selections) {
+            const groupSelection = selections[groupName] as ItemSelection;
+            if (!groupSelection?.selected && !groupSelection?.items[title]) {
+              return null;
             }
-          } catch (error: any) {
-            console.log(`Error processing image ${imageUrl}:`, error);
-            images.push({
-              success: false,
-              error: error.message || "Failed to process image",
-            });
           }
-        }
 
-        results.push({
-          title,
-          images,
-        });
-      }
-    }
+          let images: any[] = [];
+
+          if (materialMain.length > 0) {
+            const imageTasks = Array.from(materialMain).map((element) =>
+              imageLimit(async () => {
+                const $element = page$(element);
+                const relativeImageUrl = $element.attr("href");
+                if (!relativeImageUrl) return null;
+
+                const imageUrl = resolveUrl(
+                  useRuntimeConfig().public.baseUrl || "",
+                  relativeImageUrl
+                );
+                if (!imageUrl) return null;
+
+                const imageName = path.basename(imageUrl.split("?")[0]);
+
+                try {
+                  const headResponse = await useCache<AxiosResponse<any, any>>(
+                    imageName,
+                    async () => await axios.head(imageUrl),
+                    30
+                  );
+                  const size = parseInt(
+                    headResponse.headers["content-length"] || "0",
+                    10
+                  );
+
+                  if (mode === "preview") {
+                    return {
+                      success: true,
+                      url: imageUrl,
+                      name: imageName,
+                      size,
+                    };
+                  }
+                } catch (error: any) {
+                  console.log(`Error processing image ${imageUrl}:`, error);
+                  return {
+                    success: false,
+                    error: error.message || "Failed to process image",
+                  };
+                }
+
+                return null;
+              })
+            );
+
+            images = (await Promise.all(imageTasks)).filter(Boolean);
+          }
+
+          return {
+            title,
+            images,
+            hasVideo,
+            fullLink,
+          };
+        })
+      )
+    );
 
     return {
       success: true,
-      data: results,
+      data: results.filter(Boolean), // remove nulls
     };
   } catch (error: any) {
     return {

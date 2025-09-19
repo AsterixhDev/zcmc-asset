@@ -2,8 +2,18 @@
 import { ref, computed } from 'vue'
 
 // Props
-defineProps<{
-    groupData: any[]
+const props = defineProps<{
+    groupData: {
+        title: string;
+        images: {
+            success: boolean;
+            url: string;
+            name: string;
+            size: number;
+        }[];
+        hasVideo: boolean;
+        fullLink: string;
+    }[]
     groupName: string
     status: any
     formatSize: (bytes: number) => string
@@ -57,7 +67,10 @@ onMounted(() => {
         <div v-for="item in groupData" :key="item.title" @click="openGallery(item)"
             class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
             :class="{ 'animate-fade-in': status.stage === 'processing' }">
-            <h2 class="text-xl font-semibold mb-4">{{ groupName }} - {{ item.title }}</h2>
+
+            <a :href="item.fullLink" target="_blank" rel="noopener noreferrer" class="block mb-4">
+                <h2 class="text-xl font-semibold mb-4">{{ groupName }} - {{ item.title }}</h2>
+            </a>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="image in item.images" :key="image.url" class="space-y-2 flex flex-col items-center">
 
@@ -69,7 +82,7 @@ onMounted(() => {
                         <span v-if="image.size" class="ml-2">({{ formatSize(image.size) }})</span>
                     </div>
                     <div v-if="!image.success" class="text-red-500">
-                        {{ image.error }}
+                        Failed to load image
                     </div>
                 </div>
             </div>
