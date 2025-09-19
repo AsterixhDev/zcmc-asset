@@ -102,6 +102,9 @@ const closeModal = () => {
     showSelectionModal.value = false;
 };
 
+// Video Modal State
+
+
 // Watchers
 // watch(() => mode.value, (newMode) => {
 //     if (newMode === 'download' && hasGroups.value) {
@@ -130,18 +133,7 @@ const closeModal = () => {
             <!-- displaying from the static sources let it have a min and max width, and also act like an accordion -->
             <StaticDrop :static-sources="staticSources" :status="status" :format-size="formatSize" />
 
-            <!-- Display long items for testing -->
-            <div v-if="longItems.length" class="bg-white p-4 rounded shadow">
-                <h2 class="text-lg font-semibold mb-4">Long Items</h2>
-                <ul class="list-disc list-inside space-y-2 max-h-64 overflow-y-auto">
-                    <li v-for="(item, index) in longItems" :key="index">
-                        <strong>{{ item.title }}</strong>
-                        <ul class="list-disc list-inside ml-5">
-                            <li v-for="(img, imgIndex) in item.images" :key="imgIndex">{{ img }}</li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
+
 
 
             <!-- Status Display -->

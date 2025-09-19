@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from "axios";
 import path from "path";
 import pLimit from "p-limit";
+import * as cheerio from "cheerio";
 
 interface ItemSelection {
   selected: boolean;
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
     selections,
     onlyWithVideo = false,
     onlyWithImages = false,
-  } = await readBody(event) as {
+  } = (await readBody(event)) as {
     groupName: string;
     links: string[];
     mode?: "preview" | "download";
@@ -32,8 +33,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Limit concurrency for both pages and images
-  const pageLimit = pLimit(10); // 5 pages at once
-  const imageLimit = pLimit(30); // 10 image HEADs at once
+  const pageLimit = pLimit(10);
+  const imageLimit = pLimit(30);
 
   try {
     const results = await Promise.all(
@@ -51,15 +52,17 @@ export default defineEventHandler(async (event) => {
             30
           );
 
-          const page$ = cheerio.load(pageResponse.data);
+          const html = pageResponse.data;
+          const page$ = cheerio.load(html);
+
           const title = `${linkId}-${page$(".lection_title").text().trim()}`;
           const materialMain = page$(".material_main a");
-          const hasVideo = page$(".video-js").length > 0;
-          console.log(onlyWithVideo,onlyWithImages)
+          const hasVideo = page$("video").length > 0;
+
           if (onlyWithVideo && !hasVideo) return null;
           if (
             onlyWithImages &&
-            !onlyWithVideo&&
+            !onlyWithVideo &&
             hasVideo &&
             materialMain.length === 0
           )
@@ -73,8 +76,44 @@ export default defineEventHandler(async (event) => {
             }
           }
 
-          let images: any[] = [];
+          // Extract real video URL if present
+          let videoUrl: string | null = null;
 
+          // Try to capture is_video_id from inline script
+          const scriptBlock = html.match(/var\s+is_video_id\s*=\s*"([^"]+)"/);
+          if (scriptBlock && scriptBlock[1]) {
+            const isVideoId = scriptBlock[1];
+            videoUrl = `https://vz-be550dce-c8c.b-cdn.net/${isVideoId}/playlist.m3u8`;
+          }
+
+          // fallback: still try <video> or regex
+          if (!videoUrl && hasVideo) {
+            const directSrc = page$("video").attr("src");
+            if (directSrc && !directSrc.startsWith("blob:")) {
+              videoUrl = directSrc;
+            }
+
+            if (!videoUrl) {
+              page$("video source").each((_, el) => {
+                const src = page$(el).attr("src");
+                if (src && !src.startsWith("blob:")) {
+                  videoUrl = src;
+                }
+              });
+            }
+
+            if (!videoUrl) {
+              const m3u8Match = html.match(/https?:\/\/[^\s"']+\.m3u8/);
+              if (m3u8Match) videoUrl = m3u8Match[0];
+            }
+
+            if (!videoUrl) {
+              const mp4Match = html.match(/https?:\/\/[^\s"']+\.mp4/);
+              if (mp4Match) videoUrl = mp4Match[0];
+            }
+          }
+
+          let images: any[] = [];
           if (materialMain.length > 0) {
             const imageTasks = Array.from(materialMain).map((element) =>
               imageLimit(async () => {
@@ -128,6 +167,7 @@ export default defineEventHandler(async (event) => {
             title,
             images,
             hasVideo,
+            videoUrl, // now includes is_video_id extraction
             fullLink,
           };
         })
@@ -136,7 +176,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      data: results.filter(Boolean), // remove nulls
+      data: results.filter(Boolean),
     };
   } catch (error: any) {
     return {

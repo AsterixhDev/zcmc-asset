@@ -34,24 +34,65 @@ export function useScraper() {
     message: "Ready to start",
   });
 
-  const staticSources = [{
-    name: "zioncenter",
-    jsonData: nov1stsource,
-    baseUrl: "https://www.zioncenter.co.kr",
-    linkPrefix: "/web/lection/",
-    linkSuffix: "/show_lection?id=cnEzS2pFN25CeUtoRk1ycUMvbXdjUT09",
-    descriptionKr: "시온센터",
-    descriptionEn: "Zion Center",
-    // long info saying that this is the bible study from Nov 1st 2024 to august 2025
-    longInfo: "2024년 11월 1일부터 2025년 8월까지의 성경공부 자료입니다.",
-    // list of tags
-    tags: ["시온센터", "Zion Center", "Bible Study", "2024", "2025", "Nov 1st"]
-  }]
+  const longItems = ref<
+    {
+      title: string;
+      images: {
+        success: boolean;
+        url: string;
+        name: string;
+        size: number;
+      }[];
+      hasVideo: boolean;
+      videoUrl: string;
+      fullLink: string;
+    }[]
+  >([]);
+  const staticSources = [
+    {
+      name: "zioncenter",
+      jsonData: nov1stsource,
+      baseUrl: "https://www.zioncenter.co.kr",
+      linkPrefix: "/web/lection/",
+      linkSuffix: "/show_lection?id=cnEzS2pFN25CeUtoRk1ycUMvbXdjUT09",
+      descriptionKr: "시온센터",
+      descriptionEn: "Zion Center",
+      longInfo: "2024년 11월 1일부터 2025년 8월까지의 성경공부 자료입니다.",
+      tags: [
+        "시온센터",
+        "Zion Center",
+        "Bible Study",
+        "2024",
+        "2025",
+        "Nov 1st",
+      ],
+    },
+    ...(longItems.value.length > 0
+      ? [
+          {
+            name: "Long search results",
+            jsonData: longItems.value,
+            baseUrl: "https://www.zioncenter.co.kr",
+            linkPrefix: "/web/lection/",
+            linkSuffix: "/show_lection?id=cnEzS2pFN25CeUtoRk1ycUMvbXdjUT09",
+            descriptionKr: "추가 검색 결과",
+            descriptionEn: "Additional search results",
+            longInfo:
+              "사용자가 검색한 항목에 대한 추가 자료입니다. 여기에는 선택한 레슨 및 관련 미디어가 포함됩니다.",
+            tags: [
+              "검색결과",
+              "Long Items",
+              "Bible Study",
+              "Filtered",
+              "User Selection",
+            ],
+          },
+        ]
+      : []),
+  ];
 
   const groups = ref<Record<string, any>>({});
-  const longItems = ref<
-    { title: string; images: string[]; hasVideo: boolean }[]
-  >([]);
+
   const selections = ref<Record<string, GroupSelection>>({});
 
   // Make computed properties SSR-safe with null checks
@@ -474,6 +515,6 @@ export function useScraper() {
     downloadSelectedContent,
     scrapeLongFind,
     longItems,
-    staticSources
+    staticSources,
   };
 }
