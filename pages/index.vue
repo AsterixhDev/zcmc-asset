@@ -128,7 +128,7 @@ const closeModal = () => {
             </div>
 
             <!-- displaying from the static sources let it have a min and max width, and also act like an accordion -->
-            <LazyStaticDrop :static-sources="staticSources" :status="status" :format-size="formatSize" />
+            <StaticDrop :static-sources="staticSources" :status="status" :format-size="formatSize" />
 
             <!-- Display long items for testing -->
             <div v-if="longItems.length" class="bg-white p-4 rounded shadow">
