@@ -6,6 +6,30 @@ const QUALITY_OPTIONS = [
     { value: '480p', label: 'High Quality (480p)' },
 ] as const;
 
+useHead({
+  title: 'Zion Center Digital Library',
+  meta: [
+    { name: 'description', content: 'Access, preview, and download curated Zion Center study resources. High-quality video lectures, structured Bible study guides, and archival content from 2024–2025.' },
+    { name: 'robots', content: 'index, follow' },
+
+    // Open Graph
+    { property: 'og:title', content: 'Zion Center Digital Library' },
+    { property: 'og:description', content: 'Explore and download Bible study lectures and materials from Zion Center. Organized, searchable, and available in multiple formats.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: 'https://zcmc-asset.vercel.app' },
+    { property: 'og:image', content: 'https://zcmc-asset.vercel.app/favicon.ico' },
+
+    // Twitter
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'Zion Center Digital Library' },
+    { name: 'twitter:description', content: 'Browse and download Zion Center Bible study resources with structured access to lectures, guides, and archives.' },
+    { name: 'twitter:image', content: 'https://zcmc-asset.vercel.app/favicon.ico' },
+  ],
+  link: [
+    { rel: 'canonical', href: 'https://zcmc-asset.vercel.app' },
+  ],
+})
+
 // Reactive state
 const input = ref("");
 const mode = ref<'preview' | 'download'>('preview');
